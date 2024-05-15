@@ -1,0 +1,6 @@
+    // ダイジェストをBase64エンコード
+    char* base64_encoded_digest = base64_encode(digest, SHA256_DIGEST_LENGTH);
+
+    // SASトークンを組み立てる
+    std::string sas_token = "sp=r&st=" + url_encode(signedStart) + "&se=" + url_encode(signedExpiry) + 
+                            "&spr=https&sv=2020-02-10&sr=b&sig=" + std::string(base64_encoded_digest);
