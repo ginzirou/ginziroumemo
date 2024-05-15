@@ -1,0 +1,38 @@
+#include <curl/curl.h>
+#include <rapidjson/document.h>
+#include <string>
+
+// Helper function to perform HTTP request and return response as string
+std::string perform_http_request(const std::string& url, const std::string& auth_token) {
+    CURL* curl;
+    CURLcode res;
+    std::string readBuffer;
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+
+    if (curl) {
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, ("Authorization: Bearer " + auth_token).c_str());
+
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+        res = curl_easy_perform(curl);
+
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+    }
+    curl_global_cleanup();
+
+    return readBuffer;
+}
+
+// Function to get user delegation key
+std::string get_user_delegation_key(const std::string& auth_token, const std::string& storage_account, const std::string& start, const std::string& expiry) {
+    std::string url = "https://" + storage_account + ".blob.core.windows.net/?restype=service&comp=userdelegationkey";
+    url += "&st=" + start + "&se=" + expiry;
+
+    return perform_http_request(url, auth_token);
+}

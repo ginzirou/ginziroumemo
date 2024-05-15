@@ -1,0 +1,61 @@
+#include <windows.h>
+#include <bcrypt.h>
+#include <iostream>
+
+#pragma comment(lib, "bcrypt.lib")
+
+int main()
+{
+    BCRYPT_ALG_HANDLE hAlg = NULL;
+    BCRYPT_HASH_HANDLE hHash = NULL;
+    NTSTATUS status = STATUS_UNSUCCESSFUL;
+    DWORD dataLen = 0, result = 0;
+    UCHAR hashBuffer[32]; // SHA-256 hash size
+
+    // ハッシュアルゴリズムプロバイダをオープン
+    status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, NULL, BCRYPT_ALG_HANDLE_HMAC_FLAG);
+    if (!BCRYPT_SUCCESS(status)) {
+        std::cerr << "Error: BCryptOpenAlgorithmProvider failed " << std::hex << status << std::endl;
+        return -1;
+    }
+
+    // キーを使用してハッシュオブジェクトを作成
+    UCHAR key[] = { 's', 'e', 'c', 'r', 'e', 't' }; // ここでキーを設定
+    status = BCryptCreateHash(hAlg, &hHash, NULL, 0, key, sizeof(key), 0);
+    if (!BCRYPT_SUCCESS(status)) {
+        std::cerr << "Error: BCryptCreateHash failed " << std::hex << status << std::endl;
+        BCryptCloseAlgorithmProvider(hAlg, 0);
+        return -1;
+    }
+
+    // データをハッシュ
+    UCHAR data[] = "Hello, world!";
+    status = BCryptHashData(hHash, data, sizeof(data), 0);
+    if (!BCRYPT_SUCCESS(status)) {
+        std::cerr << "Error: BCryptHashData failed " << std::hex << status << std::endl;
+        BCryptDestroyHash(hHash);
+        BCryptCloseAlgorithmProvider(hAlg, 0);
+        return -1;
+    }
+
+    // ハッシュを完成させる
+    status = BCryptFinishHash(hHash, hashBuffer, sizeof(hashBuffer), 0);
+    if (!BCRYPT_SUCCESS(status)) {
+        std::cerr << "Error: BCryptFinishHash failed " << std::hex << status << std::endl;
+        BCryptDestroyHash(hHash);
+        BCryptCloseAlgorithmProvider(hAlg, 0);
+        return -1;
+    }
+
+    // ハッシュ値を出力
+    std::cout << "HMAC-SHA256: ";
+    for (DWORD i = 0; i < sizeof(hashBuffer); i++) {
+        printf("%02x", hashBuffer[i]);
+    }
+    std::cout << std::endl;
+
+    // リソースをクリーンアップ
+    BCryptDestroyHash(hHash);
+    BCryptCloseAlgorithmProvider(hAlg, 0);
+    return 0;
+}

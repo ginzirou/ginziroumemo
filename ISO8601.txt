@@ -1,0 +1,61 @@
+#include <windows.h>
+#include <iostream>
+#include <sstream>
+#include <iomanip>
+
+std::string FormatISO8601(const SYSTEMTIME& st) {
+    std::ostringstream oss;
+    oss << st.wYear << '-'
+        << std::setw(2) << std::setfill('0') << st.wMonth << '-'
+        << std::setw(2) << std::setfill('0') << st.wDay << 'T'
+        << std::setw(2) << std::setfill('0') << st.wHour << ':'
+        << std::setw(2) << std::setfill('0') << st.wMinute << ':'
+        << std::setw(2) << std::setfill('0') << st.wSecond << 'Z';  // Assuming the time is already in UTC
+    return oss.str();
+}
+
+int main() {
+    // タイムゾーン情報を取得
+    TIME_ZONE_INFORMATION tzInfo;
+    DWORD result = GetTimeZoneInformation(&tzInfo);
+    if (result == TIME_ZONE_ID_INVALID) {
+        std::cerr << "Failed to retrieve time zone information." << std::endl;
+        return 1;
+    }
+
+    // 現在時刻を取得
+    SYSTEMTIME localTime;
+    GetLocalTime(&localTime);
+
+    // SYSTEMTIME を UTC SYSTEMTIME に変換するために FILETIME を介して変換
+    FILETIME localFileTime, utcFileTime;
+    SystemTimeToFileTime(&localTime, &localFileTime);
+    LocalFileTimeToFileTime(&localFileTime, &utcFileTime);
+
+    // FILETIME を SYSTEMTIME に再変換してUTC時間を得る
+    SYSTEMTIME utcSystemTime;
+    FileTimeToSystemTime(&utcFileTime, &utcSystemTime);
+
+    // 72時間後の時間を計算
+    ULARGE_INTEGER li;
+    li.LowPart = utcFileTime.dwLowDateTime;
+    li.HighPart = utcFileTime.dwHighDateTime;
+    li.QuadPart += 72 * 60 * 60 * 10000000ULL; // 72 hours, 60 minutes, 60 seconds, 10,000,000 100-nanoseconds
+
+    utcFileTime.dwLowDateTime = li.LowPart;
+    utcFileTime.dwHighDateTime = li.HighPart;
+
+    // 更新された FILETIME を SYSTEMTIME に変換
+    SYSTEMTIME futureUtcSystemTime;
+    FileTimeToSystemTime(&utcFileTime, &futureUtcSystemTime);
+
+    // ISO 8601形式の文字列に変換
+    std::string currentIso8601 = FormatISO8601(utcSystemTime);
+    std::string futureIso8601 = FormatISO8601(futureUtcSystemTime);
+
+    // 出力（デモンストレーション用、本来は表示しない）
+    std::cout << "Current UTC Time in ISO 8601: " << currentIso8601 << std::endl;
+    std::cout << "UTC Time +72 hours in ISO 8601: " << futureIso8601 << std::endl;
+
+    return 0;
+}
